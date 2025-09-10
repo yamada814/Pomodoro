@@ -1,5 +1,6 @@
 import tkinter as tk
 from input import InputField
+from progress_bar import ProgressBar
 
 # 定数
 BG_COLOR_SETTING = "#E6E6E6"
@@ -46,6 +47,15 @@ class App(tk.Tk):
         # ページを重ねる
         for p in self.pages.values():
             p.grid(row=0,column=0,sticky="nsew")
+
+        # 進捗バーを入れる用のコンテナ
+        self.bar_container = tk.Frame(
+            self,
+            bd=1, 
+            height=10,
+            width = self.winfo_width()    
+        )
+        self.bar_container.grid(row=1, column=0, sticky="ew")
         # 初期ページは設定画面に
         self.pages["Setting"].tkraise()
 
@@ -59,8 +69,12 @@ class App(tk.Tk):
             return
         minute = self.input_values[next_page]
         self.pages[next_page].tkraise()
+        self.show_progress_bar()
         self.pages[next_page].show_time(minute)
-        print("** switch_page_show_time",next_page)
+    # 進捗バーの表示
+    def show_progress_bar(self):
+        bar = ProgressBar(self.bar_container,self.input_values,self.winfo_width())
+
 
 # 各フレームの親クラス
 class Page(tk.Frame):
@@ -83,7 +97,6 @@ class Page(tk.Frame):
             pady=5
         )
         label.pack(side=tk.TOP)
-    
 
 # 設定用フレームクラス
 class SettingPage(Page):
@@ -159,7 +172,6 @@ class TimePage(Page):
 
 
 root = App()
-
 root.mainloop()
 print("ポモドーロアプリを終了します")
 
