@@ -6,7 +6,7 @@ class InputField(tk.Frame):
         
         self.var = tk.StringVar()
         self.label = tk.Label(
-            self,
+            parent,
             text=name,
             bg=bg,
             width=10,
@@ -14,20 +14,18 @@ class InputField(tk.Frame):
             pady=10 
         )
         self.entry = tk.Entry(
-            self,
+            parent,
             width = 5,
             justify=tk.RIGHT,
             textvariable=self.var,
             highlightthickness=0,
-            borderwidth=0,
-    
+            borderwidth=0,    
         )
 
-    def place(self,index):
-        self.label.grid(row=index,column=0)
-        self.entry.grid(row=index,column=1,ipady=1)
     def get_var(self):
         return self.var.get()
+
+
 
 
   
