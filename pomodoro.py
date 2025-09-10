@@ -12,8 +12,12 @@ LABEL_FONT = (COMMON_FONT,18,"bold")
 TIME_FONT = (COMMON_FONT,70,"bold")
 SETTING_FONT = (COMMON_FONT,15)
 
+# テスト用定数
+DEBUG_MODE = True
+DEFAULT_SECOND = 3 if DEBUG_MODE else 59
+
 # ページの状態管理用 
-# 各クラスのコンストラクタに page_meta_key という変数名でkeyを渡すことで 各ページの設定情報を取得する
+# 各クラスのコンストラクタに page_state という変数名でkeyを渡すことで 各ページの設定情報を取得する
 PAGE_META = {
     "Setting": {"title": "Setting", "bg": BG_COLOR_SETTING},
     "Work":    {"title": "Work",    "bg": BG_COLOR_WORK},
@@ -21,8 +25,6 @@ PAGE_META = {
 }
 # 入力項目名の一覧
 INPUT_NAMES = ("Work","Break","Repeat")
-# 入力値を管理するための辞書
-INPUT_VALUES = {}
 # メインウィンドウ
 class App(tk.Tk):
     def __init__(self):
@@ -31,54 +33,49 @@ class App(tk.Tk):
         self.title("Pomodoro")
         self.geometry("380x260")
         self.resizable(False,False)
-        """
-        # 各フレームを格納するコンテナの生成
-        self.container = tk.Frame(self)
-        self.container.pack(fill=tk.BOTH,expand=True)
-        # 各ページをコンテナいっぱいに広げる
-        self.container.grid_rowconfigure(0,weight=1)
-        self.container.grid_columnconfigure(0,weight=1)
-
-        # 各フレームの生成
-        self.pages = {
-            "Setting" : SettingPage(self.container,"Setting",self.start_work), # 設定用ページ
-            "Work" : TimePage(self.container,"Work"), # workタイム表示用ページ
-            "Break" : TimePage(self.container,"Break") # breakタイム表示用ページ
-        }
-        """
         self.grid_rowconfigure(0,weight=1)
         self.grid_columnconfigure(0,weight=1)
-        # 各フレームの生成
+        # 入力値の管理
+        self.input_values = {}
+        # 各ページの生成
         self.pages = {
-            "Setting" : SettingPage(self,"Setting",self.start_work), # 設定用ページ
-            "Work" : TimePage(self,"Work",), # workタイム表示用ページ
-            "Break" : TimePage(self,"Break") # breakタイム表示用ページ
+            "Setting" : SettingPage(self,"Setting",self.switch_page), # 設定用ページ
+            "Work" : TimePage(self,"Work",self.switch_page), # workタイム表示用ページ
+            "Break" : TimePage(self,"Break",self.switch_page) # breakタイム表示用ページ
         }
         # ページを重ねる
         for p in self.pages.values():
             p.grid(row=0,column=0,sticky="nsew")
+        # 初期ページは設定画面に
+        self.pages["Setting"].tkraise()
 
-        self.show("Setting")
-    
-    def show(self,name):
-        self.pages[name].tkraise()
-    
-    def start_work(self,work_time):
-        self.show("Work")
-        self.pages["Work"].show_time(work_time-1)
-
+    # 繰り返し回数の判定
+    def is_repeat_end(self):
+        return self.input_values["Repeat"] <= 0
+    def switch_page(self,next_page):
+        if self.is_repeat_end():
+            self.pages["Setting"].tkraise()
+            print("** switch_page_if")
+            return
+        minute = self.input_values[next_page]
+        self.pages[next_page].tkraise()
+        self.pages[next_page].show_time(minute)
+        print("** switch_page_show_time",next_page)
 
 # 各フレームの親クラス
 class Page(tk.Frame):
-    def __init__(self,parent,page_meta_key):
+    def __init__(self,parent,page_state):
         # 背景色の取得
-        self.bg = PAGE_META[page_meta_key]["bg"]
+        self.page_state = page_state
+        self.bg = PAGE_META[page_state]["bg"]
         super().__init__(parent,bg=self.bg)
+
+        self.app = parent
 
         # ページタイトルの表示
         label = tk.Label(            
             self,
-            text=PAGE_META[page_meta_key]["title"],
+            text=PAGE_META[page_state]["title"],
             bg=self.bg,
             fg=FONT_COLOR,
             font=LABEL_FONT,
@@ -86,13 +83,14 @@ class Page(tk.Frame):
             pady=5
         )
         label.pack(side=tk.TOP)
+    
 
 # 設定用フレームクラス
 class SettingPage(Page):
-    def __init__(self,parent,page_meta_key,func):
+    def __init__(self,parent,page_state,func):
         # スタートボタンにバインドする関数をインスタンス変数として保持
         self.func = func
-        super().__init__(parent,page_meta_key)
+        super().__init__(parent,page_state)
 
         # 入力欄をまとめるコンテナの生成
         self.field_container = tk.Frame(self,bg=self.bg)
@@ -115,39 +113,50 @@ class SettingPage(Page):
         self.button_start.pack(side=tk.TOP,pady=15)
     # スタートボタンクリック時の挙動
     def button_clicked(self):
-        self.set_values()
-        self.func(INPUT_VALUES["Work"])
-
-    # 各項目の入力値の取得
-    def set_values(self):
+        # 各項目の入力値の取得
         for name in INPUT_NAMES:
-            INPUT_VALUES[name] = int(self.fields[name].get_var())
-        #print(INPUT_VALUES)
+            self.app.input_values[name] = int(self.fields[name].get_var())
+        print(self.app.input_values)
+        self.func("Work")
         
 # 時間表示用フレームクラス
 class TimePage(Page):
-    def __init__(self,parent,page_meta_key):
-        super().__init__(parent,page_meta_key)
+    def __init__(self,parent,page_state,func):
+        self.page_state = page_state
+        self.func = func
+        super().__init__(parent,page_state)
 
         self.time_label = tk.Label(
             self,
             font=TIME_FONT,
             fg=FONT_COLOR,
-            bg=PAGE_META[page_meta_key]["bg"]
+            bg=PAGE_META[page_state]["bg"]
         )
         self.time_label.pack(fill=tk.BOTH,expand=True)
 
     # 残り時間を表示する
-    def show_time(self,minute,second=60):
+    def show_time(self,minute,second=0):
+        if minute == 0 and second == 0:
+             self.func(self.get_next_page())
+             return
+        
         if second:
             second -= 1   
         elif minute:
             minute -= 1
-            second = 59
-        else:#secondもminuteも0の時
-            return
+            second = DEFAULT_SECOND
+
         self.time_label.config(text=f"{minute:0>2}:{second:0>2}")
         self.after(1_000,self.show_time,minute,second)
+
+    # 次のページ名を取得する
+    def get_next_page(self):
+        if self.page_state == "Work":
+            return "Break"
+        elif self.page_state == "Break":
+            self.app.input_values["Repeat"] -= 1
+            return "Work"
+
 
 root = App()
 
