@@ -1,6 +1,6 @@
 import tkinter as tk
 
-
+# タイマーの進捗状況を画面下部にバー形式で表示するクラス
 class ProgressBar(tk.Frame):
     def __init__(self,parent,input_values,total_wid):
         super().__init__(parent)
@@ -9,7 +9,7 @@ class ProgressBar(tk.Frame):
         break_time = input_values["Break"]
         repeat = input_values["Repeat"]
        
-        # バーの取得
+        # バーの生成
         work_bar_wid,break_bar_wid = self.calc(total_wid,work_time,break_time,repeat)
         self.work_bars = []
         self.break_bars = []

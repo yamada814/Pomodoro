@@ -37,7 +37,13 @@ class App(tk.Tk):
         self.grid_rowconfigure(0,weight=1)
         self.grid_columnconfigure(0,weight=1)
         # 入力値の管理
-        self.input_values = {}
+        self.input_values = {
+            "Work" : 0,
+            "Break" : 0,
+            "Repeat" : 0
+        }
+        # (work + Break) を何回繰り返したか
+        self.current_cycle = 0
         # 各ページの生成
         self.pages = {
             "Setting" : SettingPage(self,"Setting",self.switch_page), # 設定用ページ
@@ -56,18 +62,23 @@ class App(tk.Tk):
             width = self.winfo_width()    
         )
         self.bar_container.grid(row=1, column=0, sticky="ew")
-        # 初期ページは設定画面に
+        # 初期ページを設定画面に
         self.pages["Setting"].tkraise()
 
     # 繰り返し回数の判定
     def is_repeat_end(self):
-        return self.input_values["Repeat"] <= 0
+        return self.current_cycle > self.input_values["Repeat"]
+    
+    # ページを切り替える関数
+    # WorkとBreakを交互に切り替え、repeatが0になったらSettingに切り替える
     def switch_page(self,next_page):
-        if self.is_repeat_end():
-            self.pages["Setting"].tkraise()
-            print("** switch_page_if")
-            return
+        if next_page == "Work":
+            self.current_cycle += 1
+            if self.is_repeat_end():
+                    self.pages["Setting"].tkraise()
+                    return
         minute = self.input_values[next_page]
+        self.pages[next_page].update_cycle_label(self.current_cycle)
         self.pages[next_page].tkraise()
         self.show_progress_bar()
         self.pages[next_page].show_time(minute)
@@ -79,17 +90,17 @@ class App(tk.Tk):
 # 各フレームの親クラス
 class Page(tk.Frame):
     def __init__(self,parent,page_state):
-        # 背景色の取得
-        self.page_state = page_state
-        self.bg = PAGE_META[page_state]["bg"]
-        super().__init__(parent,bg=self.bg)
-
         self.app = parent
+        self.page_state = page_state
+        self.page_info = PAGE_META[page_state]
+        # 背景色の取得
+        self.bg = self.page_info["bg"]
+        super().__init__(parent,bg=self.bg)
 
         # ページタイトルの表示
         label = tk.Label(            
             self,
-            text=PAGE_META[page_state]["title"],
+            text=self.page_info["title"],
             bg=self.bg,
             fg=FONT_COLOR,
             font=LABEL_FONT,
@@ -129,24 +140,35 @@ class SettingPage(Page):
         # 各項目の入力値の取得
         for name in INPUT_NAMES:
             self.app.input_values[name] = int(self.fields[name].get_var())
-        print(self.app.input_values)
+
         self.func("Work")
         
 # 時間表示用フレームクラス
 class TimePage(Page):
     def __init__(self,parent,page_state,func):
-        self.page_state = page_state
         self.func = func
         super().__init__(parent,page_state)
-
+        # 進捗ラベル
+        self.cycle_label = tk.Label(
+            self,
+            font = LABEL_FONT,
+            fg = FONT_COLOR,
+            bg = self.page_info["bg"],
+            text = f'1 / {self.app.input_values["Repeat"]}'       
+        )
+        self.cycle_label.pack(side=tk.TOP)
+        # 
         self.time_label = tk.Label(
             self,
             font=TIME_FONT,
             fg=FONT_COLOR,
-            bg=PAGE_META[page_state]["bg"]
+            bg=self.page_info["bg"]
         )
         self.time_label.pack(fill=tk.BOTH,expand=True)
 
+    # 現在何ターン目かの表示を更新する
+    def update_cycle_label(self,current_cycle):
+        self.cycle_label.config(text=f'{current_cycle} / {self.app.input_values["Repeat"]}')
     # 残り時間を表示する
     def show_time(self,minute,second=0):
         if minute == 0 and second == 0:
@@ -167,8 +189,7 @@ class TimePage(Page):
         if self.page_state == "Work":
             return "Break"
         elif self.page_state == "Break":
-            self.app.input_values["Repeat"] -= 1
-            return "Work"
+             return "Work"
 
 
 root = App()
