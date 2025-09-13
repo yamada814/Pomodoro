@@ -1,4 +1,5 @@
 import tkinter as tk
+import constant
 
 # タイマーの進捗状況を画面下部にバー形式で表示するクラス
 class ProgressBar(tk.Frame):
@@ -17,7 +18,7 @@ class ProgressBar(tk.Frame):
             # Worktimeバーの生成
             work_bar = tk.Frame(
                 parent,
-                bg="#B3B3B3",
+                bg=constant.BG_COLOR_WORK,
                 bd=1,
                 width=work_bar_wid,
                 height=8
@@ -26,7 +27,7 @@ class ProgressBar(tk.Frame):
             # Breaktimeバーの生成
             break_bar = tk.Frame(
                 parent,
-                bg="#FFFFFF",
+                bg=constant.BG_COLOR_BREAK,
                 bd=1,
                 width=break_bar_wid,
                 height=8
@@ -47,11 +48,11 @@ class ProgressBar(tk.Frame):
     def change_color(self,index,page_key):
         if page_key == "Work":
             if index > 0:
-                self.break_bars[index-1].config(bg="#FFFFFF")
-            self.work_bars[index].config(bg="#000000")
+                self.break_bars[index-1].config(bg=constant.BG_COLOR_BREAK)
+            self.work_bars[index].config(bg=constant.FONT_COLOR)
         elif page_key == "Break":
-            self.work_bars[index].config(bg="#B3B3B3")
-            self.break_bars[index].config(bg="#000000")
+            self.work_bars[index].config(bg=constant.BG_COLOR_WORK)
+            self.break_bars[index].config(bg=constant.FONT_COLOR)
 
 
 
