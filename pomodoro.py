@@ -26,6 +26,7 @@ PAGE_META = {
 }
 # 入力項目名の一覧
 INPUT_NAMES = ("Work","Break","Repeat")
+
 # メインウィンドウ
 class App(tk.Tk):
     def __init__(self):
@@ -38,11 +39,11 @@ class App(tk.Tk):
         self.grid_columnconfigure(0,weight=1)
         # 入力値の管理
         self.input_values = {
-            "Work" : 0,
-            "Break" : 0,
-            "Repeat" : 0
+            "Work" : 25,
+            "Break" : 5,
+            "Repeat" : 4
         }
-        # (work + Break) を何回繰り返したか
+        # サイクル数
         self.current_cycle = 0
         # 各ページの生成
         self.pages = {
@@ -53,39 +54,47 @@ class App(tk.Tk):
         # ページを重ねる
         for p in self.pages.values():
             p.grid(row=0,column=0,sticky="nsew")
+        self.pages["Setting"].tkraise()
 
-        # 進捗バーを入れる用のコンテナ
+        # 進捗バーを格納するコンテナの生成
         self.bar_container = tk.Frame(
             self,
             bd=1, 
-            height=10,
-            width = self.winfo_width()    
+            height= 8,
+            width = self.winfo_width()
         )
-        self.bar_container.grid(row=1, column=0, sticky="ew")
-        # 初期ページを設定画面に
-        self.pages["Setting"].tkraise()
+        self.bar_container.grid(row=1,column=0,sticky="ew")
 
+    def create_progress_bar(self):  
+        # 進捗バーの表示
+        self.bar = ProgressBar(self.bar_container,self.input_values,self.winfo_width())
+ 
     # 繰り返し回数の判定
     def is_repeat_end(self):
         return self.current_cycle > self.input_values["Repeat"]
     
     # ページを切り替える関数
     # WorkとBreakを交互に切り替え、repeatが0になったらSettingに切り替える
-    def switch_page(self,next_page):
-        if next_page == "Work":
+    def switch_page(self,next_page_key):
+        if next_page_key == "Work":
             self.current_cycle += 1
             if self.is_repeat_end():
                     self.pages["Setting"].tkraise()
                     return
-        minute = self.input_values[next_page]
-        self.pages[next_page].update_cycle_label(self.current_cycle)
-        self.pages[next_page].tkraise()
-        self.show_progress_bar()
-        self.pages[next_page].show_time(minute)
-    # 進捗バーの表示
-    def show_progress_bar(self):
-        bar = ProgressBar(self.bar_container,self.input_values,self.winfo_width())
+        next_page = self.pages[next_page_key]
 
+        self.bar.change_color(self.current_cycle - 1,next_page_key)
+        next_page.update_cycle_label(self.current_cycle)
+        minute = self.input_values[next_page_key]
+        next_page.tkraise()
+        next_page.show_time(minute)
+    
+    # 次のページ名を取得する
+    def update_page_state(self,page_state):
+        if page_state == "Work":
+            return "Break"
+        elif page_state == "Break":
+             return "Work"
 
 # 各フレームの親クラス
 class Page(tk.Frame):
@@ -140,24 +149,26 @@ class SettingPage(Page):
         # 各項目の入力値の取得
         for name in INPUT_NAMES:
             self.app.input_values[name] = int(self.fields[name].get_var())
-
+        self.app.create_progress_bar()
         self.func("Work")
         
 # 時間表示用フレームクラス
 class TimePage(Page):
     def __init__(self,parent,page_state,func):
+        self.page_state = page_state
         self.func = func
         super().__init__(parent,page_state)
-        # 進捗ラベル
+
+        # サイクル数ラベル
         self.cycle_label = tk.Label(
             self,
             font = LABEL_FONT,
             fg = FONT_COLOR,
-            bg = self.page_info["bg"],
-            text = f'1 / {self.app.input_values["Repeat"]}'       
+            bg = self.page_info["bg"],     
         )
         self.cycle_label.pack(side=tk.TOP)
-        # 
+
+        # 時間表示ラベル
         self.time_label = tk.Label(
             self,
             font=TIME_FONT,
@@ -166,13 +177,15 @@ class TimePage(Page):
         )
         self.time_label.pack(fill=tk.BOTH,expand=True)
 
-    # 現在何ターン目かの表示を更新する
+    # サイクル数ラベルの数値を更新する
     def update_cycle_label(self,current_cycle):
-        self.cycle_label.config(text=f'{current_cycle} / {self.app.input_values["Repeat"]}')
-    # 残り時間を表示する
+        self.cycle_label.config(
+            text=f'{current_cycle} / {self.app.input_values["Repeat"]}')
+    
+    # 残り時間を表示し、再起的に更新する
     def show_time(self,minute,second=0):
         if minute == 0 and second == 0:
-             self.func(self.get_next_page())
+             self.func(self.app.update_page_state(self.page_state))
              return
         
         if second:
@@ -183,13 +196,6 @@ class TimePage(Page):
 
         self.time_label.config(text=f"{minute:0>2}:{second:0>2}")
         self.after(1_000,self.show_time,minute,second)
-
-    # 次のページ名を取得する
-    def get_next_page(self):
-        if self.page_state == "Work":
-            return "Break"
-        elif self.page_state == "Break":
-             return "Work"
 
 
 root = App()
